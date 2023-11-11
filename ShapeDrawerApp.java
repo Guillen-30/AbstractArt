@@ -2,7 +2,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
-import java.awt.Polygon;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -15,7 +14,7 @@ public class ShapeDrawerApp extends JFrame {
 
     public ShapeDrawerApp() {
         setTitle("Shape Drawer App");
-        setSize(500, 500);
+        setSize(450, 450);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         drawingPanel = new DrawingPanel();
@@ -90,7 +89,7 @@ public class ShapeDrawerApp extends JFrame {
             this.drawingPanel = drawingPanel;
         }
 
-        protected abstract void addRandomShape(Random rand);
+        protected abstract ShapeFactory getShapeFactory();
 
         @Override
         public void run() {
@@ -105,6 +104,23 @@ public class ShapeDrawerApp extends JFrame {
                 }
             }
         }
+
+        protected void addRandomShape(Random rand) {
+            ShapeFactory factory = getShapeFactory();
+            
+            // Check if lastPosition is null, and set a default position if it is
+            if (lastPosition == null) {
+                lastPosition = new Point(rand.nextInt(0,450), rand.nextInt(0,450)); // Set a default position
+            }
+            
+            Shape shape = factory.createShape(rand, lastPosition);
+
+            lastColor = new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256), 125);
+            lastPosition = new Point((int) shape.getBounds2D().getCenterX(), (int) shape.getBounds2D().getCenterY());
+
+            drawingPanel.addShape(shape, lastColor);
+        }
+
     }
 
     private class DotPainter extends ShapePainter {
@@ -114,13 +130,8 @@ public class ShapeDrawerApp extends JFrame {
         }
 
         @Override
-        protected void addRandomShape(Random rand) {
-            int x = rand.nextInt(getWidth());
-            int y = rand.nextInt(getHeight());
-            int size = rand.nextInt(50) + 20;
-            lastColor = new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256),125);
-            lastPosition = new Point(x, y);
-            drawingPanel.addShape(new Ellipse2D.Double(x, y, size, size), lastColor);
+        protected ShapeFactory getShapeFactory() {
+            return new DotFactory();
         }
     }
 
@@ -131,15 +142,8 @@ public class ShapeDrawerApp extends JFrame {
         }
 
         @Override
-        protected void addRandomShape(Random rand) {
-            int x = rand.nextInt(getWidth());
-            int y = rand.nextInt(getHeight());
-            int size = rand.nextInt(50) + 20;
-            lastColor = new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256),125);
-            lastPosition = new Point(x, y);
-            int x2 = x + rand.nextInt(size);
-            int y2 = y + rand.nextInt(size);
-            drawingPanel.addShape(new Rectangle(x, y, x2, y2), lastColor);
+        protected ShapeFactory getShapeFactory() {
+            return new LineFactory();
         }
     }
 
@@ -150,20 +154,79 @@ public class ShapeDrawerApp extends JFrame {
         }
 
         @Override
-        protected void addRandomShape(Random rand) {
-            int x = rand.nextInt(getWidth());
-            int y = rand.nextInt(getHeight());
-            int size = rand.nextInt(50) + 20;
-            lastColor = new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256),125);
-            lastPosition = new Point(x, y);
+        protected ShapeFactory getShapeFactory() {
+            return new PolygonFactory();
+        }
+    }
+
+    public interface ShapeFactory {
+        Shape createShape(Random rand, Point lastPosition);
+    }
+
+    public class DotFactory implements ShapeFactory {
+        @Override
+        public Shape createShape(Random rand, Point lastPosition) {
+            int x,y;
+            while (true){
+                x = rand.nextInt(450);
+                y = rand.nextInt(450);
+                if ((x==lastPosition.getX())||y==lastPosition.getY()){
+                    x = rand.nextInt(450);
+                    y = rand.nextInt(450);
+                } else{
+                    break;
+                }
+            }
+                int size = rand.nextInt(50) + 20;
+                return new Ellipse2D.Double(x, y, size, size);            
+        }
+    }
+
+    public class LineFactory implements ShapeFactory {
+        @Override
+        public Shape createShape(Random rand, Point lastPosition) {
+            int x,y,x2,y2, size;
+            size = rand.nextInt(1,50);
+            while (true){
+                x = rand.nextInt(450);
+                y = rand.nextInt(450);
+                x2 = (rand.nextInt(x)+size);
+                y2 = (rand.nextInt(y)+size);
+
+                if (((x==lastPosition.getX())||(y==lastPosition.getY())||(x2==lastPosition.getX())||(y2==lastPosition.getY()))){
+                    x = rand.nextInt(450);
+                    y = rand.nextInt(450);
+                    x2 = (rand.nextInt(x)+size);
+                    y2 = (rand.nextInt(y)+size);
+                } else{
+                    break;
+                }
+            }
+            return new Rectangle2D.Double(x, y, x2, y2);
+        }
+    }
+
+    public class PolygonFactory implements ShapeFactory {
+        @Override
+        public Shape createShape(Random rand, Point lastPosition) {
+            int size = rand.nextInt(50) + 50;
             int sides = 3 + rand.nextInt(6); // 3 to 8 sides
             int[] xPoints = new int[sides];
             int[] yPoints = new int[sides];
             for (int i = 0; i < sides; i++) {
-                xPoints[i] = x + rand.nextInt(size);
-                yPoints[i] = y + rand.nextInt(size);
+                while (true){
+                    xPoints[i] = rand.nextInt(450);
+                    yPoints[i] = rand.nextInt(450);
+                    if (((xPoints[i]==lastPosition.getX())||(yPoints[i]==lastPosition.getY()))){
+                        xPoints[i] = rand.nextInt(450);
+                        yPoints[i] = rand.nextInt(450);
+                    } else{
+                        break;
+                    }
+                }
+
             }
-            drawingPanel.addShape(new Polygon(xPoints, yPoints, sides), lastColor);
+            return new Polygon(xPoints, yPoints, sides);
         }
     }
 
